@@ -9,7 +9,7 @@ from datetime import date
 from html.parser import HTMLParser
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 # each 2-year cycle has a letter (G = 2011-2012, H = 2013-2014, etc.)
 CYCLES = [(2011, 'G'), (2013, 'H'), (2015, 'I'), (2017, 'J')]
 MODULES = 'DEMO GHB DIQ BMX BPX PAQ SMQ ALQ DR1TOT SLQ WHQ MCQ'.split()

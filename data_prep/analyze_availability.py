@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / 'results'
 CYCLES = [(2011, 'G'), (2013, 'H'), (2015, 'I'), (2017, 'J')]
 MODULES = 'DEMO GHB DIQ BMX BPX PAQ SMQ ALQ DR1TOT SLQ WHQ MCQ'.split()

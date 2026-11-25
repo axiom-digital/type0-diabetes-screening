@@ -13,7 +13,7 @@ python -m pip install -r requirements.txt
 ## 2. Ham veriyi çek
 
 ```bash
-python prepare_sources.py
+python data_prep/prepare_sources.py
 ```
 
 CDC'den dört döngünün NHANES XPT dosyaları ve kod kitapları, USDA'dan şekerli içecek hesabı için dört dönem eşleme tablosu `raw/` klasörüne kaydedilir. Ham dosyalar hazırsa doğrudan 3. adıma geçebilirsiniz.
@@ -21,7 +21,7 @@ CDC'den dört döngünün NHANES XPT dosyaları ve kod kitapları, USDA'dan şek
 ## 3. Ana veri setini oluştur
 
 ```bash
-python build_dataset.py
+python data_prep/build_dataset.py
 ```
 
 Kod her dönem içinde `SEQN` ile eşleştirir, çalışma grubunu oluşturur (20+ yaş, muayeneye katılmış, HbA1c ölçümü mevcut, bilinen diyabet/prediyabet ve diyabet ilacı/insülin yok, hamile değil `RIDEXPRG != 1`) ve hedef değişkeni **tanı almamış prediyabet/diyabet riski (`HbA1c >= %5,7` → 1, aksi hâlde 0)** olarak yazar. `features.txt` seçilen 63 sütunu ve sıralarını içerir. Sonuç `results/nhanes_2011_2018_dataset.csv` dosyasına yazılır. Eleme sayıları `results/intermediate/cohort_flow.csv` dosyasındadır.
@@ -29,7 +29,7 @@ Kod her dönem içinde `SEQN` ile eşleştirir, çalışma grubunu oluşturur (2
 ## 4. Eğitim ve testi ayır
 
 ```bash
-python split_dataset.py
+python data_prep/split_dataset.py
 ```
 
 `results/train.csv` ve `results/test.csv` oluşur. Bölünme dönem ve hedef oranlarını yaklaşık korur. Aynı ana tablo için 42 tohumu aynı katılımcı ayrımını üretir.

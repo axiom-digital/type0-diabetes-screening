@@ -5,8 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import evaluate
-import preprocess
+from src import evaluate, preprocess
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results"

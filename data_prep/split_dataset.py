@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-RESULTS = Path(__file__).resolve().parent / "results"
+RESULTS = Path(__file__).resolve().parent.parent / "results"
 KEYS = ["cycle", "seqn"]
 # keep same seed so the split does not change
 SEED = 42

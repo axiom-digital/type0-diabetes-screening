@@ -9,7 +9,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, RobustScaler
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 TRAIN_PATH = ROOT / "results" / "train.csv"
 KEY_COLS = ["cycle", "seqn", "target"]
 

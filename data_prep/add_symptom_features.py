@@ -6,7 +6,7 @@ import pandas as pd
 
 from analyze_availability import CYCLES, codebook
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results"
 KEYS = ["cycle", "seqn"]
 
