@@ -23,7 +23,7 @@ env/
 .DS_Store
 Thumbs.db
 
-# raw downloaded data and generated outputs (recreate with prepare_sources.py & build_dataset.py)
+# raw downloaded data and intermediate files (recreate with prepare_sources.py & build_dataset.py)
 raw/
-results/
+results/intermediate/
 *.part
