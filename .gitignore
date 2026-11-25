@@ -16,6 +16,7 @@ env/
 
 # notebooks
 .ipynb_checkpoints/
+catboost_info/
 
 # ide and os
 .idea/

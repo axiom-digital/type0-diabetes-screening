@@ -105,3 +105,22 @@ def test_make_cv_splits_synthetic():
     assert len(splits) == 5
     seen = np.concatenate([va for _, va in splits])
     assert len(seen) == len(df) and len(set(seen)) == len(df)
+
+
+def test_preprocessor_with_engineered_features_synthetic():
+    df = pd.DataFrame({
+        "age": [30.0, 50.0, 65.0, 40.0],
+        "weight_kg": [80.0, 90.0, 70.0, 85.0],
+        "highest_ever_weight_kg": [75.0, 100.0, 70.0, np.nan],
+        "sex": [1.0, 2.0, 1.0, 2.0],
+    })
+    cols = ["age", "weight_kg", "highest_ever_weight_kg", "sex"]
+    for m in ("logreg", "rf", "catboost"):
+        prep = preprocess.build_preprocessor(m, cols, use_engineered=True)
+        out = prep.fit_transform(df)
+        if m == "catboost":
+            assert "weight_to_highest_ratio" in out.columns
+            assert "highest_weight_inconsistent" in out.columns
+            assert out["highest_weight_inconsistent"].tolist() == ["1", "0", "0", "missing"]
+        else:
+            assert not np.isnan(out).any()

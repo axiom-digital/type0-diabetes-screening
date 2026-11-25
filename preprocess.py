@@ -94,6 +94,11 @@ NUMERIC_COLS = [
 
 ALL_FEATURES = NOMINAL_COLS + BINARY_COLS + ORDINAL_COLS + NUMERIC_COLS
 
+# engineered features that improved CV in 03_feature_selection.ipynb
+ENGINEERED_NUMERIC_COLS = ["weight_to_highest_ratio"]
+ENGINEERED_BINARY_COLS = ["highest_weight_inconsistent"]
+ENGINEERED_FEATURES = ENGINEERED_NUMERIC_COLS + ENGINEERED_BINARY_COLS
+
 
 # load train.csv and return dataframe plus feature list
 def load_train_data(path=TRAIN_PATH):
@@ -156,15 +161,42 @@ class CatBoostPrep(BaseEstimator, TransformerMixin):
         return df
 
 
+# add the 2 engineered weight features inside the pipeline
+class WeightFeatureAdder(BaseEstimator, TransformerMixin):
+    def fit(self, X, y=None):
+        self.is_fitted_ = True
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+        if "weight_kg" in df.columns and "highest_ever_weight_kg" in df.columns:
+            high = df["highest_ever_weight_kg"]
+            cur = df["weight_kg"]
+            df["weight_to_highest_ratio"] = cur / high.where(high > 0)
+            both = high.notna() & cur.notna()
+            df["highest_weight_inconsistent"] = np.where(
+                both,
+                (high < cur - 2.0).astype(float),
+                np.nan,
+            )
+        return df
+
+
 # build a leak-free preprocessor for the chosen model and feature list
-def build_preprocessor(model_type, feature_cols=None):
+def build_preprocessor(model_type, feature_cols=None, use_engineered=False):
     model_type = model_type.lower()
     if model_type not in {"logreg", "rf", "catboost"}:
         raise ValueError("model_type must be 'logreg', 'rf', or 'catboost'")
 
     cols = list(ALL_FEATURES) if feature_cols is None else list(feature_cols)
-    num_set = set(NUMERIC_COLS) | set(ORDINAL_COLS)
-    cat_set = set(NOMINAL_COLS) | set(BINARY_COLS)
+    add_fe = use_engineered and "weight_kg" in cols and "highest_ever_weight_kg" in cols
+    if add_fe:
+        for c in ENGINEERED_FEATURES:
+            if c not in cols:
+                cols.append(c)
+
+    num_set = set(NUMERIC_COLS) | set(ORDINAL_COLS) | set(ENGINEERED_NUMERIC_COLS)
+    cat_set = set(NOMINAL_COLS) | set(BINARY_COLS) | set(ENGINEERED_BINARY_COLS)
 
     num_cols = [c for c in cols if c in num_set]
     cat_cols = [c for c in cols if c in cat_set]
@@ -172,11 +204,14 @@ def build_preprocessor(model_type, feature_cols=None):
     if unknown:
         raise ValueError(f"unknown columns: {unknown}")
 
+    steps = []
+    if add_fe:
+        steps.append(("fe", WeightFeatureAdder()))
+    steps.append(("zeros", StructuralZeroFiller()))
+
     if model_type == "catboost":
-        return Pipeline([
-            ("zeros", StructuralZeroFiller()),
-            ("prep", CatBoostPrep(cat_cols=cat_cols, num_cols=num_cols)),
-        ])
+        steps.append(("prep", CatBoostPrep(cat_cols=cat_cols, num_cols=num_cols)))
+        return Pipeline(steps)
 
     # logreg needs scaling; rf does not
     num_steps = [("imputer", SimpleImputer(strategy="median", add_indicator=True))]
@@ -194,7 +229,5 @@ def build_preprocessor(model_type, feature_cols=None):
     if cat_cols:
         transformers.append(("cat", cat_pipe, cat_cols))
 
-    return Pipeline([
-        ("zeros", StructuralZeroFiller()),
-        ("cols", ColumnTransformer(transformers=transformers, remainder="drop")),
-    ])
+    steps.append(("cols", ColumnTransformer(transformers=transformers, remainder="drop")))
+    return Pipeline(steps)
