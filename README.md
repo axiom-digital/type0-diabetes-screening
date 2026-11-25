@@ -42,6 +42,12 @@ python split_dataset.py
 
 66 sütun, 63 aday özellik ve `cycle`, `seqn`, `target` alanlarından oluşur. Model girdisini eğitim sırasında ayrıca seçin. Test dosyası yalnızca son değerlendirme içindir.
 
+## 5. Testleri çalıştır
+
+```bash
+pytest -q
+```
+
 ## Önemli Veri Notları
 
 - **Örnekleme ağırlıkları:** NHANES örnekleme ağırlıkları (`WTMEC2YR` vb.) kullanılmamıştır; bu nedenle veri setindeki pozitif oranı (`~%29,6`) genel nüfus yaygınlığı (prevalans) değildir.

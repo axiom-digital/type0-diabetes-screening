@@ -148,7 +148,7 @@ def main():
         pills_no_or_routed = get('DIQ070').eq(2) | (master['DIQ070'].isna() & negative_diagnoses)
         track('06_uygunluk_bilgisi_belirsiz_olanlari_ayir', negative_diagnoses & insulin_no & pills_no_or_routed)
         # exclude pregnant women (RIDEXPRG == 1 in DEMO codebook)
-        track('07_hamile_degil', ~get('RIDEXPRG').eq(1))
+        track('07_not_pregnant', ~get('RIDEXPRG').eq(1))
         master['cohort_eligible'] = active
         master['reported_diagnosis'] = known
         # target is 1 when HbA1c >= 5.7, otherwise 0
