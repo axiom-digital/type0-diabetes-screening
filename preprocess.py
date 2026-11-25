@@ -81,7 +81,7 @@ NUMERIC_COLS = [
     "total_sugar_g",
     "fiber_g",
     "plain_water_day1_g",
-    "self_reported_weight_loss_1y_kg",
+    "weight_change_1y_kg",
     "floss_days_7d",
     "reported_weight_change_10y_kg",
     "highest_ever_weight_kg",

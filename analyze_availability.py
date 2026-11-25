@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parent
 OUT = ROOT / 'results'
 CYCLES = [(2011, 'G'), (2013, 'H'), (2015, 'I'), (2017, 'J')]
 MODULES = 'DEMO GHB DIQ BMX BPX PAQ SMQ ALQ DR1TOT SLQ WHQ MCQ'.split()
+# diastolic values below 30 mmHg are measurement errors
+MIN_DIASTOLIC_MMHG = 30.0
 FEATURES = [
     ('age', 'Yaş', 'Demografi'), ('sex', 'Cinsiyet', 'Demografi'),
     ('education', 'Eğitim düzeyi', 'Demografi'), ('income_poverty_ratio', 'Gelir/yoksulluk oranı', 'Demografi'),
@@ -145,6 +147,8 @@ def main():
         insulin_no = get('DIQ050').eq(2)
         pills_no_or_routed = get('DIQ070').eq(2) | (master['DIQ070'].isna() & negative_diagnoses)
         track('06_uygunluk_bilgisi_belirsiz_olanlari_ayir', negative_diagnoses & insulin_no & pills_no_or_routed)
+        # exclude pregnant women (RIDEXPRG == 1 in DEMO codebook)
+        track('07_hamile_degil', ~get('RIDEXPRG').eq(1))
         master['cohort_eligible'] = active
         master['reported_diagnosis'] = known
         # target is 1 when HbA1c >= 5.7, otherwise 0
@@ -161,6 +165,7 @@ def main():
                     status.loc[mask, name] = code
             mappings.append({'cycle': cycle, 'feature': name, 'source': source})
 
+        # RIDAGEYR is top-coded at 80 in NHANES (80 means 80+)
         direct = {'age': 'RIDAGEYR', 'sex': 'RIAGENDR', 'education': 'DMDEDUC2',
                   'income_poverty_ratio': 'INDFMPIR', 'marital_status': 'DMDMARTL',
                   'height_cm': 'BMXHT', 'weight_kg': 'BMXWT', 'bmi': 'BMXBMI', 'waist_cm': 'BMXWAIST',
@@ -174,7 +179,12 @@ def main():
         # mean of first 3 blood pressure checks (do not use the 4th one)
         for name, prefix in [('systolic_mean', 'BPXSY'), ('diastolic_mean', 'BPXDI')]:
             readings = pd.concat([get(prefix+str(i)) for i in [1, 2, 3]], axis=1)
-            put(name, readings.mean(axis=1), prefix+'1,2,3; en az bir ölçüm; dördüncü dahil değil')
+            mean_val = readings.mean(axis=1)
+            if name == 'diastolic_mean':
+                bad_dia = mean_val.lt(MIN_DIASTOLIC_MMHG)
+                print(f"{cycle} diastolic_mean < {MIN_DIASTOLIC_MMHG}: {int((bad_dia & active).sum())} rows set to NaN", flush=True)
+                mean_val = mean_val.where(~bad_dia)
+            put(name, mean_val, prefix+'1,2,3; en az bir ölçüm; dördüncü dahil değil')
 
         # total weekly minutes = days * minutes (0 if answer is No)
         def activity(flag, days, minutes):
@@ -316,7 +326,7 @@ def main():
     quality['summary'] = summary
     quality['feature_count'] = len(FEATURES)
     quality['raw_module_count'] = len(inventory)
-    quality['pregnancy_exclusion_applied'] = False
+    quality['pregnancy_exclusion_applied'] = True
     quality['sleep_and_alcohol_harmonization'] = 'provisional; availability analysis only'
     quality['no_imputation_no_training'] = True
     (OUT/'analysis_summary.json').write_text(json.dumps(quality, ensure_ascii=False, indent=2), encoding='utf-8')

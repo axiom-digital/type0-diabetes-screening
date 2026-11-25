@@ -51,8 +51,8 @@ def main():
         loss_flag.loc[intentional.eq(2)] = 1
         base["nightly_urination_count_5plus"] = kidney.KIQ480.where(kidney.KIQ480.between(0, 5))
         base["plain_water_day1_g"] = first.DR1_320Z.where(first.DR1DRSTZ.eq(1))
-        # lb to kg
-        base["self_reported_weight_loss_1y_kg"] = loss_lb * 0.45359237
+        # current weight minus 1y ago weight in kg (positive = weight gain, negative = weight loss)
+        base["weight_change_1y_kg"] = -loss_lb * 0.45359237
         base["reported_unintentional_loss_10lb"] = loss_flag
         base["fatigue_frequency_2w"] = fatigue.DPQ040.where(fatigue.DPQ040.between(0, 3))
         base["daytime_sleepiness_frequency"] = sleep.SLQ120.where(sleep.SLQ120.between(0, 4))
@@ -63,7 +63,7 @@ def main():
         dental["self_suspected_gum_disease"] = oral.OHQ835.where(oral.OHQ835.isin([1, 2]) & base.age.ge(30))
         assert not (oral.OHQ835.isin([1, 2]) & base.age.lt(30)).any()
         dental_parts.append(dental.reset_index(drop=True))
-        assert base.loc[loss_flag.eq(1), "self_reported_weight_loss_1y_kg"].ge(4.535923699).all()
+        assert base.loc[loss_flag.eq(1), "weight_change_1y_kg"].le(-4.535923699).all()
         # SLQ120 (daytime sleepiness) was not in the survey before 2015
         if year < 2015:
             assert base.daytime_sleepiness_frequency.isna().all()

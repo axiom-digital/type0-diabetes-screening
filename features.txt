@@ -30,7 +30,7 @@ total_sugar_g
 fiber_g
 nightly_urination_count_5plus
 plain_water_day1_g
-self_reported_weight_loss_1y_kg
+weight_change_1y_kg
 reported_unintentional_loss_10lb
 fatigue_frequency_2w
 daytime_sleepiness_frequency
