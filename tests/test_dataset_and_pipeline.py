@@ -123,3 +123,32 @@ def test_preprocessor_with_engineered_features_synthetic():
             assert out["highest_weight_inconsistent"].tolist() == ["1", "0", "0", "missing"]
         else:
             assert not np.isnan(out).any()
+
+
+@needs_data
+def test_alcohol_cap_and_weight_loss_skip_rule():
+    df = pd.read_csv(FULL_CSV, usecols=["drinks_per_drinking_day", "attempted_weight_loss_1y"])
+    assert df["drinks_per_drinking_day"].dropna().le(15.0).all()
+    assert int(df["attempted_weight_loss_1y"].isna().sum()) < 50
+
+
+def test_logreg_missing_indicators_are_unscaled_and_single_fe():
+    df = pd.DataFrame({
+        "age": [25.0, 40.0, 55.0, 70.0, 35.0, 60.0],
+        "weight_kg": [70.0, 80.0, 90.0, 85.0, 75.0, 95.0],
+        "highest_ever_weight_kg": [72.0, np.nan, 95.0, 80.0, np.nan, 100.0],
+    })
+    # logreg missing indicator columns should stay 0.0 / 1.0 after RobustScaler
+    prep_lr = preprocess.build_preprocessor("logreg", ["age", "weight_kg", "highest_ever_weight_kg"])
+    out_lr = prep_lr.fit_transform(df)
+    num_union = prep_lr.named_steps["cols"].named_transformers_["num"]
+    n_vals = len(num_union.transformer_list[0][1].named_steps["imputer"].feature_names_in_)
+    miss_block = out_lr[:, n_vals:]
+    assert miss_block.shape[1] == 1
+    assert set(np.unique(miss_block).tolist()).issubset({0.0, 1.0})
+
+    # requesting only one engineered column should not silently add the other
+    req_cols = ["age", "weight_kg", "highest_ever_weight_kg", "weight_to_highest_ratio"]
+    prep_cb = preprocess.build_preprocessor("catboost", req_cols, use_engineered=True)
+    out_cb = prep_cb.fit_transform(df)
+    assert list(out_cb.columns) == req_cols

@@ -5,8 +5,8 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
-from sklearn.pipeline import Pipeline
+from sklearn.impute import MissingIndicator, SimpleImputer
+from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, RobustScaler
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -172,13 +172,15 @@ class WeightFeatureAdder(BaseEstimator, TransformerMixin):
         if "weight_kg" in df.columns and "highest_ever_weight_kg" in df.columns:
             high = df["highest_ever_weight_kg"]
             cur = df["weight_kg"]
-            df["weight_to_highest_ratio"] = cur / high.where(high > 0)
-            both = high.notna() & cur.notna()
-            df["highest_weight_inconsistent"] = np.where(
-                both,
-                (high < cur - 2.0).astype(float),
-                np.nan,
-            )
+            if "weight_to_highest_ratio" not in df.columns:
+                df["weight_to_highest_ratio"] = cur / high.where(high > 0)
+            if "highest_weight_inconsistent" not in df.columns:
+                both = high.notna() & cur.notna()
+                df["highest_weight_inconsistent"] = np.where(
+                    both,
+                    (high < cur - 2.0).astype(float),
+                    np.nan,
+                )
         return df
 
 
@@ -189,11 +191,15 @@ def build_preprocessor(model_type, feature_cols=None, use_engineered=False):
         raise ValueError("model_type must be 'logreg', 'rf', or 'catboost'")
 
     cols = list(ALL_FEATURES) if feature_cols is None else list(feature_cols)
-    add_fe = use_engineered and "weight_kg" in cols and "highest_ever_weight_kg" in cols
-    if add_fe:
-        for c in ENGINEERED_FEATURES:
-            if c not in cols:
-                cols.append(c)
+    requested_fe = [c for c in cols if c in ENGINEERED_FEATURES]
+    can_make_fe = "weight_kg" in cols and "highest_ever_weight_kg" in cols
+
+    # if caller did not list engineered columns directly, add both when use_engineered=True
+    if use_engineered and can_make_fe and not requested_fe:
+        cols.extend(ENGINEERED_FEATURES)
+        requested_fe = list(ENGINEERED_FEATURES)
+
+    add_fe = bool(requested_fe) and can_make_fe
 
     num_set = set(NUMERIC_COLS) | set(ORDINAL_COLS) | set(ENGINEERED_NUMERIC_COLS)
     cat_set = set(NOMINAL_COLS) | set(BINARY_COLS) | set(ENGINEERED_BINARY_COLS)
@@ -213,10 +219,19 @@ def build_preprocessor(model_type, feature_cols=None, use_engineered=False):
         steps.append(("prep", CatBoostPrep(cat_cols=cat_cols, num_cols=num_cols)))
         return Pipeline(steps)
 
-    # logreg needs scaling; rf does not
-    num_steps = [("imputer", SimpleImputer(strategy="median", add_indicator=True))]
+    # for logreg, scale only the imputed values and keep 0/1 missing flags untouched
     if model_type == "logreg":
-        num_steps.append(("scaler", RobustScaler()))
+        num_pipe = FeatureUnion([
+            ("values", Pipeline([
+                ("imputer", SimpleImputer(strategy="median")),
+                ("scaler", RobustScaler()),
+            ])),
+            ("missing", MissingIndicator(error_on_new=False)),
+        ])
+    else:
+        num_pipe = Pipeline([
+            ("imputer", SimpleImputer(strategy="median", add_indicator=True)),
+        ])
 
     cat_pipe = Pipeline([
         ("to_str", FunctionTransformer(to_cat_strings, validate=False)),
@@ -225,7 +240,7 @@ def build_preprocessor(model_type, feature_cols=None, use_engineered=False):
 
     transformers = []
     if num_cols:
-        transformers.append(("num", Pipeline(num_steps), num_cols))
+        transformers.append(("num", num_pipe, num_cols))
     if cat_cols:
         transformers.append(("cat", cat_pipe, cat_cols))
 

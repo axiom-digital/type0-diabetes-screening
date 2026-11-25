@@ -53,4 +53,6 @@ pytest -q
 - **Örnekleme ağırlıkları:** NHANES örnekleme ağırlıkları (`WTMEC2YR` vb.) kullanılmamıştır; bu nedenle veri setindeki pozitif oranı (`~%29,6`) genel nüfus yaygınlığı (prevalans) değildir.
 - **Yaş üst sınırı (`age`):** NHANES `RIDAGEYR` değişkeni 80 yaş ve üzerini `80` olarak üst sınırlı (`80+`) kodlar.
 - **Kilo değişimi işareti:** `weight_change_1y_kg` ve `reported_weight_change_10y_kg` sütunlarında **pozitif değer kilo artışı**, **negatif değer kilo kaybı** anlamına gelir (`güncel kilo - önceki kilo`).
-- **Diyastolik tansiyon (`diastolic_mean`):** Fizyolojik olarak imkânsız olan `30 mmHg` altındaki ortalamalar (ölçüm hatası / 0 değerleri) `NaN` yapılır.
+- **Diyastolik tansiyon (`diastolic_mean`):** Ortalama alınmadan önce `30 mmHg` altındaki tekil ölçümler (`0` dahil) `NaN` yapılır; kalan geçerli ölçümlerin ortalaması alınır.
+- **Alkol (`alcohol_frequency`, `drinks_per_drinking_day`):** 2011–2016'da ömür boyu içmeyen yapısal atlamalar 2017–2018 ile tutarlı olacak şekilde `0` atanır; günlük içki sayısı (`ALQ130`) tüm dönemlerde `15` üst koduyla sınırlandırılır.
+- **Kilo verme denemesi (`attempted_weight_loss_1y`):** Son 1 yılda bilinçli olarak 10+ lb kilo verdiği için (`WHQ060 == 1`) `WHQ070` sorusu atlanan katılımcılar `1` (Evet) olarak doldurulur.
