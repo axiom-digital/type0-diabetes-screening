@@ -1,0 +1,29 @@
+# python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# env files
+.env
+.env.*
+!.env.example
+
+# notebooks
+.ipynb_checkpoints/
+
+# ide and os
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# raw downloaded data and generated outputs (recreate with prepare_sources.py & build_dataset.py)
+raw/
+results/
+*.part
