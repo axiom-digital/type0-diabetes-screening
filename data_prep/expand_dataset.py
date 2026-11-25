@@ -62,7 +62,11 @@ def cycle_features(base, year, suffix):
         values = read(module, code)[code].round() if available else pd.Series(index=data.index, dtype=float)
         put(name, title, code, note, values.where(values.isin(valid)))
 
-    weight = read("WHQ", "WHD020", "WHD110", "WHD140")
+    weight = read("WHQ", "WHD020", "WHD110", "WHD140", "WHQ060")
+    # NHANES skips WHQ070 when person already said they lost 10+ lb on purpose (WHQ060 == 1)
+    features["attempted_weight_loss_1y"] = features["attempted_weight_loss_1y"].mask(
+        features["attempted_weight_loss_1y"].isna() & weight.WHQ060.round().eq(1), 1.0
+    )
     # 10-year weight change in kg, only for people age 36+
     change = (weight.WHD020.where(weight.WHD020.gt(0)) - weight.WHD110.where(weight.WHD110.gt(0))) * 0.45359237
     put("reported_weight_change_10y_kg", "10 yıllık kilo değişimi (kg)", "WHD020 − WHD110", "36 yaş ve üzeri. Güncel bildirilen kilo eksi 10 yıl önceki bildirilen kilo. Pozitif değer kilo artışıdır.", change.where(data.age.ge(36)))

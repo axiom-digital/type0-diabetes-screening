@@ -179,11 +179,17 @@ def main():
         # mean of first 3 blood pressure checks (do not use the 4th one)
         for name, prefix in [('systolic_mean', 'BPXSY'), ('diastolic_mean', 'BPXDI')]:
             readings = pd.concat([get(prefix+str(i)) for i in [1, 2, 3]], axis=1)
-            mean_val = readings.mean(axis=1)
             if name == 'diastolic_mean':
+                # drop single readings below 30 mmHg (including 0) before taking the mean
+                bad_single = readings.lt(MIN_DIASTOLIC_MMHG)
+                affected = int((bad_single.any(axis=1) & active).sum())
+                readings = readings.where(~bad_single)
+                mean_val = readings.mean(axis=1)
                 bad_dia = mean_val.lt(MIN_DIASTOLIC_MMHG)
-                print(f"{cycle} diastolic_mean < {MIN_DIASTOLIC_MMHG}: {int((bad_dia & active).sum())} rows set to NaN", flush=True)
+                print(f"{cycle} diastolic single < {MIN_DIASTOLIC_MMHG}: {affected} rows cleaned", flush=True)
                 mean_val = mean_val.where(~bad_dia)
+            else:
+                mean_val = readings.mean(axis=1)
             put(name, mean_val, prefix+'1,2,3; en az bir ölçüm; dördüncü dahil değil')
 
         # total weekly minutes = days * minutes (0 if answer is No)
@@ -233,16 +239,19 @@ def main():
             af.loc[annual.ge(52) & annual.lt(260)] = 3
             af.loc[annual.ge(260)] = 4
             structural_skip = get('ALQ101').eq(2) & get('ALQ110').eq(2) & q.isna()
+            # lifetime non-drinkers in 2011-2016 get 0 to match 2017-2018 (ALQ111 == 2)
+            af.loc[structural_skip] = 0
             source = 'ALQ120Q + ALQ120U; ön ortak kategori 0–4, eğitim için kesinleştirilmedi'
         else:
             af = get('ALQ121').map({0: 0, 1: 4, 2: 4, 3: 3, 4: 3, 5: 3, 6: 2, 7: 2, 8: 1, 9: 1, 10: 1})
             af = af.mask(get('ALQ111').eq(2), 0)
             source = 'ALQ111 + ALQ121; ön ortak kategori 0–4, eğitim için kesinleştirilmedi'
-        put('alcohol_frequency', af, source, {'structural_skip': structural_skip})
+        put('alcohol_frequency', af, source, {'derived_zero': structural_skip})
         drink_na = af.eq(0)
-        drinks = get('ALQ130').where(~drink_na)
-        put('drinks_per_drinking_day', drinks, 'ALQ130; tüketmeyenlerde uygulanamaz; dönem üst kodları farklı',
-            {'not_applicable': drink_na, 'structural_skip': structural_skip & drinks.isna()})
+        # cap at 15 drinks/day to match the 2017-2018 top-code
+        drinks = get('ALQ130').where(~drink_na).clip(upper=15)
+        put('drinks_per_drinking_day', drinks, 'ALQ130; tüketmeyenlerde uygulanamaz; üst kod 15',
+            {'not_applicable': drink_na})
 
         # sleep column name is different in newer cycles
         sleep_code = 'SLD010H' if 'SLD010H' in master.columns else 'SLD012'
