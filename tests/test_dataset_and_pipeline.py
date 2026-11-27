@@ -152,3 +152,20 @@ def test_logreg_missing_indicators_are_unscaled_and_single_fe():
     prep_cb = preprocess.build_preprocessor("catboost", req_cols, use_engineered=True)
     out_cb = prep_cb.fit_transform(df)
     assert list(out_cb.columns) == req_cols
+
+
+@needs_data
+def test_all_feature_sets_work_with_preprocessors():
+    from src.feature_sets import FEATURE_SETS, raw_input_cols
+
+    df = pd.read_csv(TRAIN_CSV, nrows=100)
+    for name, cols in FEATURE_SETS.items():
+        assert len(cols) == len(set(cols)), name
+        raw_cols = raw_input_cols(cols)
+        for m in ("logreg", "rf", "catboost"):
+            prep = preprocess.build_preprocessor(m, cols, use_engineered=True)
+            out = prep.fit_transform(df[raw_cols])
+            if m == "catboost":
+                assert out.shape == (len(df), len(cols)), (name, m)
+            else:
+                assert not np.isnan(out).any(), (name, m)
