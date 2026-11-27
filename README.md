@@ -1,8 +1,8 @@
-# NHANES 2011–2018 · Type0 Prediyabet / Diyabet Tarama Veri Seti (63 Özellik)
+# NHANES 2011-2018 Diyabet ve Prediyabet Tarama Veri Seti
 
-Python 3.12 ile doğrulandı. Terminal'i `type0-diabetes-screening` klasöründe başlatın.
+Proje Python 3.12 ile test edildi. Komutları proje ana klasöründen çalıştırabilirsiniz.
 
-## 1. Ortamı kur
+## 1. Kurulum
 
 ```bash
 python3.12 -m venv .venv
@@ -10,49 +10,49 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-## 2. Ham veriyi çek
+## 2. Ham Veriyi İndirme
 
 ```bash
 python data_prep/prepare_sources.py
 ```
 
-CDC'den dört döngünün NHANES XPT dosyaları ve kod kitapları, USDA'dan şekerli içecek hesabı için dört dönem eşleme tablosu `raw/` klasörüne kaydedilir. Ham dosyalar hazırsa doğrudan 3. adıma geçebilirsiniz.
+CDC'den dört dönemin NHANES `.xpt` ve kod kitabı (`.htm`) dosyaları ile USDA şekerli içecek eşleme tabloları `raw/` klasörüne indirilir. `raw/` klasörü zaten hazırsa doğrudan 3. adıma geçilebilir.
 
-## 3. Ana veri setini oluştur
+## 3. Veri Setini Oluşturma
 
 ```bash
 python data_prep/build_dataset.py
 ```
 
-Kod her dönem içinde `SEQN` ile eşleştirir, çalışma grubunu oluşturur (20+ yaş, muayeneye katılmış, HbA1c ölçümü mevcut, bilinen diyabet/prediyabet ve diyabet ilacı/insülin yok, hamile değil `RIDEXPRG != 1`) ve hedef değişkeni **tanı almamış prediyabet/diyabet riski (`HbA1c >= %5,7` → 1, aksi hâlde 0)** olarak yazar. `features.txt` seçilen 63 sütunu ve sıralarını içerir. Sonuç `results/nhanes_2011_2018_dataset.csv` dosyasına yazılır. Eleme sayıları `results/intermediate/cohort_flow.csv` dosyasındadır.
+Kayıtlar her dönem içinde `SEQN` üzerinden birleştirilir ve çalışma grubu filtrelenir (20+ yaş, muayeneye katılmış, HbA1c ölçümü var, daha önce diyabet/prediyabet tanısı veya ilacı yok, hamile değil `RIDEXPRG != 1`). Hedef sütun (`target`), `HbA1c >= 5.7` ise `1`, değilse `0` olarak yazılır. Seçilen 63 özellik `features.txt` listesindedir. Ana tablo `results/nhanes_2011_2018_dataset.csv`, eleme adımları ise `results/intermediate/cohort_flow.csv` dosyasına kaydedilir.
 
-## 4. Eğitim ve testi ayır
+## 4. Train / Test Ayrımı
 
 ```bash
 python data_prep/split_dataset.py
 ```
 
-`results/train.csv` ve `results/test.csv` oluşur. Bölünme dönem ve hedef oranlarını yaklaşık korur. Aynı ana tablo için 42 tohumu aynı katılımcı ayrımını üretir.
+Veri `%80` eğitim (`results/train.csv`) ve `%20` test (`results/test.csv`) olarak ayrılır. Dönem (`cycle`) ve `target` oranları korunur; `seed=42` sabit olduğu için her çalıştırmada aynı ayrım üretilir.
 
-| Çıktı | Katılımcı | Sütun |
+| Dosya | Satır | Sütun |
 |---|---:|---:|
 | Ana veri seti | 15.473 | 66 |
-| Eğitim | 12.378 | 66 |
+| Train | 12.378 | 66 |
 | Test | 3.095 | 66 |
 
-66 sütun, 63 aday özellik ve `cycle`, `seqn`, `target` alanlarından oluşur. Model girdisini eğitim sırasında ayrıca seçin. Test dosyası yalnızca son değerlendirme içindir.
+Tablolarda `cycle`, `seqn`, `target` ve 63 özellik sütunu bulunur. `results/test.csv` model seçimi ve hiperparametre denemelerinde kullanılmaz; sadece son test aşamasında açılır.
 
-## 5. Testleri çalıştır
+## 5. Testler
 
 ```bash
 pytest -q
 ```
 
-## Önemli Veri Notları
+## Veri Seti Hakkında Notlar
 
-- **Örnekleme ağırlıkları:** NHANES örnekleme ağırlıkları (`WTMEC2YR` vb.) kullanılmamıştır; bu nedenle veri setindeki pozitif oranı (`~%29,6`) genel nüfus yaygınlığı (prevalans) değildir.
-- **Yaş üst sınırı (`age`):** NHANES `RIDAGEYR` değişkeni 80 yaş ve üzerini `80` olarak üst sınırlı (`80+`) kodlar.
-- **Kilo değişimi işareti:** `weight_change_1y_kg` ve `reported_weight_change_10y_kg` sütunlarında **pozitif değer kilo artışı**, **negatif değer kilo kaybı** anlamına gelir (`güncel kilo - önceki kilo`).
-- **Diyastolik tansiyon (`diastolic_mean`):** Ortalama alınmadan önce `30 mmHg` altındaki tekil ölçümler (`0` dahil) `NaN` yapılır; kalan geçerli ölçümlerin ortalaması alınır.
-- **Alkol (`alcohol_frequency`, `drinks_per_drinking_day`):** 2011–2016'da ömür boyu içmeyen yapısal atlamalar 2017–2018 ile tutarlı olacak şekilde `0` atanır; günlük içki sayısı (`ALQ130`) tüm dönemlerde `15` üst koduyla sınırlandırılır.
-- **Kilo verme denemesi (`attempted_weight_loss_1y`):** Son 1 yılda bilinçli olarak 10+ lb kilo verdiği için (`WHQ060 == 1`) `WHQ070` sorusu atlanan katılımcılar `1` (Evet) olarak doldurulur.
+- NHANES örnekleme ağırlıkları (`WTMEC2YR` vb.) kullanılmadığı için veri setindeki `~%29.6` pozitif oranı doğrudan ABD genel nüfus oranı olarak yorumlanmamalıdır.
+- `RIDAGEYR` (`age`) değişkeninde 80 yaş ve üzeri kişiler NHANES tarafından `80` olarak üst sınırlı kodlanmıştır.
+- `weight_change_1y_kg` ve `reported_weight_change_10y_kg` sütunlarında pozitif değer kilo artışını, negatif değer kilo kaybını gösterir (`güncel kilo - önceki kilo`).
+- `diastolic_mean` hesaplanmadan önce `30 mmHg` altındaki hatalı tekil ölçümler (`0` dahil) `NaN` yapılmıştır.
+- 2011-2016 dönemlerinde hayatı boyunca alkol almadığı için sorusu geçilen kişilere, 2017-2018 dönemiyle uyumlu olması için `alcohol_frequency = 0` atanmış ve `drinks_per_drinking_day` (`ALQ130`) üst sınırı tüm dönemlerde `15` yapılmıştır.
+- Son 1 yılda isteyerek 10 lb üzeri kilo verdiği için (`WHQ060 == 1`) `WHQ070` sorusu atlanan kişilerde `attempted_weight_loss_1y = 1` olarak doldurulmuştur.
